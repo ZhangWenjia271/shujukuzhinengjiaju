@@ -1,4 +1,7 @@
 # shujukuzhinengjiaju
+## 前期准备
+### 调用函数
+'''
 from datetime import datetime
 from typing import List, Optional
 from fastapi import FastAPI, Depends, HTTPException
@@ -11,22 +14,31 @@ import random
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+'''
 
-# 数据库连接
+### 数据库连接
+'''
 DATABASE_URL = "sqlite:///./smart_home.db"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+'''
 
+'''
 app = FastAPI(title="智能家居API")
+'''
 
-
-# 自定义响应类，确保中文正确显示
-class UTF8JSONResponse(JSONResponse):
+### 自定义响应类，确保中文正确显示
+'''
+class UTF8JSONResponse(JSONResponse):  
     media_type = "application/json; charset=utf-8"
+'''
 
+---
 
-# Pydantic模型定义
+## 建立数据库
+### Pydantic模型定义
+'''
 class UserBase(BaseModel):
     name: str
     phone: str
@@ -78,7 +90,6 @@ class EnergyConsumption(EnergyConsumptionBase):
     model_config = ConfigDict(from_attributes=True)
 
 
-# === 新增 House 相关模型 ===
 class HouseBase(BaseModel):
     area: float = Field(..., gt=0, description="房屋面积（平方米）")
     people_count: int = Field(..., gt=0, description="居住人数")
@@ -93,9 +104,11 @@ class House(HouseBase):
     id: int
     house_type: str = Field(..., description="房型（小型/中型/大型）")
     model_config = ConfigDict(from_attributes=True)
+'''
 
 
-# SQLAlchemy模型定义
+### SQLAlchemy模型定义
+'''
 class DBUser(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
@@ -132,7 +145,6 @@ class DBEnergyConsumption(Base):
     record_time = Column(DateTime)
 
 
-# === 新增 House 数据库模型 ===
 class DBHouse(Base):
     __tablename__ = "houses"
     id = Column(Integer, primary_key=True, index=True)
@@ -140,9 +152,10 @@ class DBHouse(Base):
     people_count = Column(Integer)
     house_type = Column(String)  # 自动计算的房型
     user_id = Column(Integer, ForeignKey("users.id"))
+'''
 
-
-# === 自动计算房型的监听函数 ===
+## 自动计算房型的监听函数
+'''
 @listens_for(DBHouse, 'before_insert')
 @listens_for(DBHouse, 'before_update')
 def calculate_house_type(mapper, connection, target):
@@ -153,22 +166,27 @@ def calculate_house_type(mapper, connection, target):
         target.house_type = "中型"
     else:
         target.house_type = "大型"
+'''
 
+---
 
-# 创建数据库表
+## 创建数据库表
+'''
 Base.metadata.create_all(bind=engine)
+'''
 
-
-# 依赖：获取数据库会话
+## 依赖：获取数据库会话
+'''
 def get_db() -> Session:
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
+'''
 
-
-# 根路径处理
+## 根路径处理
+'''
 @app.get("/", include_in_schema=False, response_class=UTF8JSONResponse)
 def root():
     return {
@@ -177,10 +195,13 @@ def root():
         "docs": "/docs",
         "redoc": "/redoc"
     }
+'''
 
+---
 
-
-# 生成10条用户数据
+## 随机生成数据
+### 生成10条用户数据
+'''
 def create_dummy_users(db: Session):
     for _ in range(10):
         user = DBUser(
@@ -191,8 +212,10 @@ def create_dummy_users(db: Session):
         )
         db.add(user)
     db.commit()
+'''
 
-# 生成10条设备数据
+### 生成10条设备数据
+'''
 def create_dummy_devices(db: Session):
     users = db.query(DBUser).all()  # 获取所有用户
     if not users:
@@ -209,13 +232,13 @@ def create_dummy_devices(db: Session):
         )
         db.add(device)
     db.commit()  # 提交所有设备数据
+'''
 
-
-# 生成10条安防日志数据
+### 生成60条安防日志数据
+'''
 from datetime import datetime, timedelta
 import random
 
-# 生成10条安防日志数据
 def create_dummy_security_logs(db: Session):
     devices = db.query(DBDevice).all()  # 获取所有设备
     if not devices:
@@ -234,13 +257,10 @@ def create_dummy_security_logs(db: Session):
         )
         db.add(log)
     db.commit()  # 提交所有事件数据
+'''
 
-
-
-
-
-
-
+### 生成100条能耗数据
+'''
 def create_dummy_energy_consumptions(db: Session):
     devices = db.query(DBDevice).all()  # 获取所有设备
 
@@ -263,10 +283,10 @@ def create_dummy_energy_consumptions(db: Session):
             db.add(consumption)
 
     db.commit()  # 提交所有记录
+'''
 
-
-
-# 生成10条房屋数据
+### 生成10条房屋数据
+'''
 def create_dummy_houses(db: Session):
     users = db.query(DBUser).all()  # 获取所有用户
     for _ in range(10):
@@ -277,8 +297,12 @@ def create_dummy_houses(db: Session):
         )
         db.add(house)
     db.commit()
+'''
 
-# 在应用启动时调用这些函数来创建虚拟数据
+---
+
+## 在应用启动时调用这些函数来创建虚拟数据
+'''
 @app.on_event("startup")
 def startup():
     db = SessionLocal()
@@ -288,9 +312,13 @@ def startup():
     create_dummy_energy_consumptions(db)
     create_dummy_houses(db)
     db.close()
+'''
 
+---
 
-# ================ 用户模块：增删改查 ================
+## API接口
+### 用户模块：增删改查
+'''
 @app.post("/users/", response_model=User, response_class=UTF8JSONResponse)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
     """创建用户"""
@@ -343,9 +371,10 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
     db.delete(db_user)
     db.commit()
     return {"status": "success", "message": "用户已删除"}
+'''
 
-
-# ================ 设备模块：增删改查 ================
+### 设备模块：增删改查
+'''
 @app.post("/devices/", response_model=Device, response_class=UTF8JSONResponse)
 def create_device(device: DeviceBase, db: Session = Depends(get_db)):
     """创建设备"""
@@ -398,9 +427,10 @@ def delete_device(device_id: int, db: Session = Depends(get_db)):
     db.delete(db_device)
     db.commit()
     return {"status": "success", "message": "设备已删除"}
+'''
 
-
-# ================ 安防日志模块：增删改查 ================
+### 安防日志模块：增删改查
+'''
 @app.post("/security-logs/", response_model=SecurityLog, response_class=UTF8JSONResponse)
 def create_security_log(log: SecurityLogBase, db: Session = Depends(get_db)):
     """创建安防日志"""
@@ -453,9 +483,10 @@ def delete_security_log(log_id: int, db: Session = Depends(get_db)):
     db.delete(db_log)
     db.commit()
     return {"status": "success", "message": "安防日志已删除"}
+'''
 
-
-# ================ 能耗记录模块：增删改查 ================
+### 能耗记录模块：增删改查
+'''
 @app.post("/energy-consumptions/", response_model=EnergyConsumption, response_class=UTF8JSONResponse)
 def create_energy_consumption(consumption: EnergyConsumptionBase, db: Session = Depends(get_db)):
     """创建能耗记录"""
@@ -508,9 +539,10 @@ def delete_energy_consumption(consumption_id: int, db: Session = Depends(get_db)
     db.delete(db_consumption)
     db.commit()
     return {"status": "success", "message": "能耗记录已删除"}
+'''
 
-
-# ================ House 模块：增删改查 ================
+### House 模块：增删改查
+'''
 @app.post("/houses/", response_model=House, response_class=UTF8JSONResponse)
 def create_house(house: HouseCreate, db: Session = Depends(get_db)):
     """创建房屋信息"""
@@ -574,110 +606,15 @@ def delete_house(house_id: int, db: Session = Depends(get_db)):
     db.delete(db_house)
     db.commit()
     return {"status": "success", "message": "房屋信息已删除"}
+'''
+
+---
+
+## API数据分析接口
 
 
-# ================ 数据分析接口 ================
-
-
-# ================ 数据分析接口 ================
-@app.get("/analytics/devices/top-energy-users", response_class=UTF8JSONResponse)
-def get_top_energy_users(limit: int = 3, db: Session = Depends(get_db)):
-    """查询能耗最高的设备（前N名）"""
-    subq = (
-        db.query(
-            DBEnergyConsumption.device_id,
-            func.sum(DBEnergyConsumption.consumption).label("total_consumption")
-        )
-        .group_by(DBEnergyConsumption.device_id)
-        .subquery()
-    )
-    result = (
-        db.query(DBDevice.name, subq.c.total_consumption)
-        .join(subq, DBDevice.id == subq.c.device_id)
-        .order_by(subq.c.total_consumption.desc())
-        .limit(limit)
-        .all()
-    )
-    return [{"device_name": name, "total_consumption": total} for name, total in result]
-
-
-@app.get("/analytics/users/device-count", response_class=UTF8JSONResponse)
-def get_user_device_count(db: Session = Depends(get_db)):
-    """统计每个用户的设备数量"""
-    result = (
-        db.query(DBUser.name, func.count(DBDevice.id).label("device_count"))
-        .join(DBDevice, DBUser.id == DBDevice.user_id, isouter=True)
-        .group_by(DBUser.id)
-        .all()
-    )
-    return [{"user_name": name, "device_count": count} for name, count in result]
-
-
-@app.get("/analytics/security/activity-by-hour", response_class=UTF8JSONResponse)
-def get_security_activity_by_hour(db: Session = Depends(get_db)):
-    """统计每小时的安防事件数量"""
-    result = (
-        db.query(
-            func.extract("hour", DBSecurityLog.event_time).label("hour"),
-            func.count(DBSecurityLog.id).label("event_count")
-        )
-        .group_by("hour")
-        .order_by("hour")
-        .all()
-    )
-    return [{"hour": int(hour), "event_count": count} for hour, count in result]
-
-
-@app.get("/analytics/house-area/device-usage", response_class=UTF8JSONResponse)
-def analyze_house_area_device_usage(db: Session = Depends(get_db)):
-    """分析房屋面积对设备使用的影响"""
-
-    # Subquery to calculate device count and average energy consumption for each user
-    subq = (
-        db.query(
-            DBDevice.user_id,
-            func.count(DBDevice.id).label("device_count"),
-            func.avg(DBEnergyConsumption.consumption).label("avg_consumption")
-        )
-        .join(DBEnergyConsumption, DBDevice.id == DBEnergyConsumption.device_id)
-        .group_by(DBDevice.user_id)
-        .subquery()
-    )
-
-    # Query to get house area, house type, device count, and avg consumption grouped by house type
-    result = (
-        db.query(
-            DBHouse.house_type,
-            func.avg(DBHouse.area).label("avg_area"),  # Average area within each house type group
-            func.sum(subq.c.device_count).label("total_device_count"),
-            func.avg(subq.c.avg_consumption).label("avg_device_consumption")
-        )
-        .join(subq, DBHouse.user_id == subq.c.user_id)
-        .group_by(DBHouse.house_type)
-        .order_by(DBHouse.house_type)
-        .all()
-    )
-
-    return [
-        {
-            "house_type": item.house_type,
-            "avg_area": round(item.avg_area, 2),  # Round area average for each house type
-            "total_device_count": item.total_device_count,
-            "avg_device_consumption": round(item.avg_device_consumption, 2) if item.avg_device_consumption else 0
-        }
-        for item in result
-    ]
-
-
-
-
-
-
-
-
-
-
-# ================ 数据分析接口 ================
+### 设备使用频率和使用时间段分析接口
+'''
 @app.get("/analytics/devices/usage-frequency", response_class=UTF8JSONResponse)
 def get_device_usage_frequency(db: Session = Depends(get_db)):
     """统计设备的使用频率"""
@@ -692,43 +629,9 @@ def get_device_usage_frequency(db: Session = Depends(get_db)):
         .all()
     )
     return [{"device_name": name, "usage_count": count} for name, count in result]
+'''
 
-@app.get("/analytics/devices/usage-by-hour", response_class=UTF8JSONResponse)
-def get_device_usage_by_hour(db: Session = Depends(get_db)):
-    """按小时统计每个设备的使用情况"""
-    result = (
-        db.query(
-            DBDevice.name,
-            func.extract("hour", DBSecurityLog.event_time).label("hour"),
-            func.count(DBSecurityLog.id).label("usage_count")
-        )
-        .join(DBSecurityLog, DBSecurityLog.device_id == DBDevice.id)
-        .group_by(DBDevice.name, "hour")
-        .order_by(DBDevice.name, "hour")
-        .all()
-    )
-    return [
-        {"device_name": name, "hour": int(hour), "usage_count": count}
-        for name, hour, count in result
-    ]
-
-
-@app.get("/analytics/devices/energy-consumption", response_class=UTF8JSONResponse)
-def get_device_energy_consumption(db: Session = Depends(get_db)):
-    """按设备统计总能耗"""
-    result = (
-        db.query(
-            DBDevice.name,
-            func.sum(DBEnergyConsumption.consumption).label("total_consumption")
-        )
-        .join(DBEnergyConsumption, DBEnergyConsumption.device_id == DBDevice.id)
-        .group_by(DBDevice.name)
-        .order_by(func.sum(DBEnergyConsumption.consumption).desc())
-        .all()
-    )
-    return [{"device_name": name, "total_consumption": total} for name, total in result]
-
-
+'''
 @app.get("/analytics/devices/simultaneous-usage", response_class=UTF8JSONResponse)
 def get_simultaneous_device_usage(db: Session = Depends(get_db)):
     """统计同一时间段内使用频率最高的1个设备"""
@@ -774,8 +677,109 @@ def get_simultaneous_device_usage(db: Session = Depends(get_db)):
         })
 
     return simultaneous_usage
+'''
+'''
+@app.get("/analytics/devices/top-energy-users", response_class=UTF8JSONResponse)
+def get_top_energy_users(limit: int = 3, db: Session = Depends(get_db)):
+    """查询能耗最高的设备（前N名）"""
+    subq = (
+        db.query(
+            DBEnergyConsumption.device_id,
+            func.sum(DBEnergyConsumption.consumption).label("total_consumption")
+        )
+        .group_by(DBEnergyConsumption.device_id)
+        .subquery()
+    )
+    result = (
+        db.query(DBDevice.name, subq.c.total_consumption)
+        .join(subq, DBDevice.id == subq.c.device_id)
+        .order_by(subq.c.total_consumption.desc())
+        .limit(limit)
+        .all()
+    )
+    return [{"device_name": name, "total_consumption": total} for name, total in result]
+'''
 
 
+### 用户使用习惯分析接口
+'''
+@app.get("/analytics/users/device-count", response_class=UTF8JSONResponse)
+def get_user_device_count(db: Session = Depends(get_db)):
+    """统计每个用户的设备数量"""
+    result = (
+        db.query(DBUser.name, func.count(DBDevice.id).label("device_count"))
+        .join(DBDevice, DBUser.id == DBDevice.user_id, isouter=True)
+        .group_by(DBUser.id)
+        .all()
+    )
+    return [{"user_name": name, "device_count": count} for name, count in result]
+'''
+'''
+@app.get("/analytics/devices/usage-by-hour", response_class=UTF8JSONResponse)
+def get_device_usage_by_hour(db: Session = Depends(get_db)):
+    """按小时统计每个设备的使用情况"""
+    result = (
+        db.query(
+            DBDevice.name,
+            func.extract("hour", DBSecurityLog.event_time).label("hour"),
+            func.count(DBSecurityLog.id).label("usage_count")
+        )
+        .join(DBSecurityLog, DBSecurityLog.device_id == DBDevice.id)
+        .group_by(DBDevice.name, "hour")
+        .order_by(DBDevice.name, "hour")
+        .all()
+    )
+    return [
+        {"device_name": name, "hour": int(hour), "usage_count": count}
+        for name, hour, count in result
+    ]
+'''
+
+### 房屋面积影响分析接口
+'''
+@app.get("/analytics/house-area/device-usage", response_class=UTF8JSONResponse)
+def analyze_house_area_device_usage(db: Session = Depends(get_db)):
+    """分析房屋面积对设备使用的影响"""
+
+    # Subquery to calculate device count and average energy consumption for each user
+    subq = (
+        db.query(
+            DBDevice.user_id,
+            func.count(DBDevice.id).label("device_count"),
+            func.avg(DBEnergyConsumption.consumption).label("avg_consumption")
+        )
+        .join(DBEnergyConsumption, DBDevice.id == DBEnergyConsumption.device_id)
+        .group_by(DBDevice.user_id)
+        .subquery()
+    )
+
+    # Query to get house area, house type, device count, and avg consumption grouped by house type
+    result = (
+        db.query(
+            DBHouse.house_type,
+            func.avg(DBHouse.area).label("avg_area"),  # Average area within each house type group
+            func.sum(subq.c.device_count).label("total_device_count"),
+            func.avg(subq.c.avg_consumption).label("avg_device_consumption")
+        )
+        .join(subq, DBHouse.user_id == subq.c.user_id)
+        .group_by(DBHouse.house_type)
+        .order_by(DBHouse.house_type)
+        .all()
+    )
+
+    return [
+        {
+            "house_type": item.house_type,
+            "avg_area": round(item.avg_area, 2),  # Round area average for each house type
+            "total_device_count": item.total_device_count,
+            "avg_device_consumption": round(item.avg_device_consumption, 2) if item.avg_device_consumption else 0
+        }
+        for item in result
+    ]
+'''
+
+### 数据可视化接口：生成不同户型的总能耗统计柱状图
+'''
 from fastapi import Response, HTTPException
 from sqlalchemy.orm import Session
 import matplotlib.pyplot as plt
@@ -783,11 +787,12 @@ from io import BytesIO
 import traceback
 from sqlalchemy import func
 
-# 设置中文字体支持
+        # 设置中文字体支持
 plt.rcParams["font.family"] = ["SimHei", "WenQuanYi Micro Hei", "Heiti TC"]
 plt.rcParams["axes.unicode_minus"] = False  # 解决负号显示问题
+'''
 
-
+'''
 @app.get("/analytics/houses/total-energy-consumption-chart", response_class=Response)
 def get_total_energy_consumption_chart(db: Session = Depends(get_db)):
     """生成不同户型的总能耗统计柱状图"""
@@ -856,10 +861,47 @@ def get_total_energy_consumption_chart(db: Session = Depends(get_db)):
         # 打印详细错误信息
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"生成图表失败: {str(e)}")
+'''
 
+### 其他分析接口
+'''
+@app.get("/analytics/security/activity-by-hour", response_class=UTF8JSONResponse)
+def get_security_activity_by_hour(db: Session = Depends(get_db)):
+    """统计每小时的安防事件数量"""
+    result = (
+        db.query(
+            func.extract("hour", DBSecurityLog.event_time).label("hour"),
+            func.count(DBSecurityLog.id).label("event_count")
+        )
+        .group_by("hour")
+        .order_by("hour")
+        .all()
+    )
+    return [{"hour": int(hour), "event_count": count} for hour, count in result]
+'''
+'''
+@app.get("/analytics/devices/energy-consumption", response_class=UTF8JSONResponse)
+def get_device_energy_consumption(db: Session = Depends(get_db)):
+    """按设备统计总能耗"""
+    result = (
+        db.query(
+            DBDevice.name,
+            func.sum(DBEnergyConsumption.consumption).label("total_consumption")
+        )
+        .join(DBEnergyConsumption, DBEnergyConsumption.device_id == DBDevice.id)
+        .group_by(DBDevice.name)
+        .order_by(func.sum(DBEnergyConsumption.consumption).desc())
+        .all()
+    )
+    return [{"device_name": name, "total_consumption": total} for name, total in result]
+'''
 
-# 应用启动
+---
+
+## 应用启动
+'''
 if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+'''
