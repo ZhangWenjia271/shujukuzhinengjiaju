@@ -1,6 +1,3 @@
-以下是将内容转换为正确Markdown格式后的版本：
-
-```markdown
 # shujukuzhinengjiaju
 ## 前期准备
 ### 调用函数
