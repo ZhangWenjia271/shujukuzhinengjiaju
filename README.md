@@ -1,4 +1,4 @@
-# shujukuzhinengjiaju
+# 数据库智能家居系统
 ## 前期准备
 ### 调用函数
 ```python
