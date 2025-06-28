@@ -1,7 +1,7 @@
 # shujukuzhinengjiaju
 ## 前期准备
 ### 调用函数
-'''
+``
 from datetime import datetime
 from typing import List, Optional
 from fastapi import FastAPI, Depends, HTTPException
@@ -14,7 +14,7 @@ import random
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-'''
+``
 
 ### 数据库连接
 '''
