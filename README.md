@@ -870,3 +870,16 @@ if __name__ == "__main__":
 
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
 ```
+
+---
+
+## API接口的整体截图和几个重要查询的结果截图
+![image](https://github.com/user-attachments/assets/ed042bdc-6f8f-4652-923d-e98f3e23a146)
+![image](https://github.com/user-attachments/assets/c611b823-698b-4b2b-9fab-7bd4474b410f)
+![image](https://github.com/user-attachments/assets/b1c8c888-e193-42f0-b446-f556e99660bf)
+![image](https://github.com/user-attachments/assets/65ed8ffe-bcdf-4521-8327-999f0d0611a2)
+![image](https://github.com/user-attachments/assets/1e9c11e9-ec93-4e6c-8ec7-2d4439a5014e)
+![image](https://github.com/user-attachments/assets/da7c9532-c786-4e7f-b861-1c084bf634af)
+![image](https://github.com/user-attachments/assets/c053091d-76ea-4297-9fb1-723218b5234b)
+![image](https://github.com/user-attachments/assets/572da758-1972-4d9f-91f2-2c14c2ba4781)
+
